@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>tracking.js - face with camera</title>
+  <link rel="stylesheet" href="example/assets/demo.css">
+
+  <script src="build/tracking.js"></script>
+  <script src="build/data/face-min.js"></script>
+  <script src="./js/dat.gui.js"></script>
+  <script src="example/assets/stats.min.js"></script>
+
+  <style>
+    video, canvas {
+      margin-left: 230px;
+      margin-top: 120px;
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+<div class="demo-title">
+  <p><a href="http://trackingjs.com" target="_parent">tracking.js</a> － get user's webcam and detect faces</p>
+</div>
+<div id="informationTitle" style="color: #f40;width: 500px;margin: auto">
+
+</div>
+<div class="demo-frame">
+  <div class="demo-container">
+    <video style="border: 1px solid #ccc;" id="video" width="240" height="320" preload autoplay loop muted playsinline webkit-playsinline="true"></video>
+    <canvas id="canvas" width="240" height="320"></canvas>
+  </div>
+</div>
+<div>
+  <img id="img" src="" alt="">
+</div>
+<script>
+	window.onload = function() {
+		var video = document.getElementById('video');
+		var canvas = document.getElementById('canvas');
+		var img = document.getElementById('img');
+		var informationTitle = document.getElementById('informationTitle');
+		var facecontext = canvas.getContext('2d');
+		var tipFlag = false
+		var faceflag = false
+
+		var tracker = new tracking.ObjectTracker('face');
+		tracker.setInitialScale(4);
+		tracker.setStepSize(2);
+		tracker.setEdgesDensity(0.1);
+		video.addEventListener('canplay', function() {
+			alert(this.videoWidth)
+			alert(this.videoHeight)
+		})
+		let s = 3;
+		var p =  {
+			height: {min: 240*s, ideal: 240*s, max: 240*s},
+			width: {min: 320*s, ideal:  320*s, max:  320*s}
+		}
+		var tra = tracking.track('#video', tracker, { camera: true,});
+    window.tra = tracker
+		tracker.on('track', function(event) {
+			if(!tipFlag){
+				facecontext.clearRect(0, 0, canvas.width, canvas.height);
+				if (event.data.length === 0) {
+					//未检测到人脸
+					if(!faceflag){
+						informationTitle.innerText = '未检测到人脸'
+					}
+				} else if (event.data.length === 1) { // 长度为多少代表检测到几张人脸
+					//检测到一张人脸
+					if(!tipFlag){
+						informationTitle.innerText = '识别成功，正在拍照，请勿乱动~'
+						// 给检测到的人脸绘制矩形
+						event.data.forEach(function(rect) {
+							facecontext.strokeStyle = '#a64ceb';
+							facecontext.strokeRect(rect.x, rect.y, rect.width, rect.height);
+							facecontext.font = '11px Helvetica';
+							facecontext.fillStyle = "#fff";
+							facecontext.fillText('x: ' + rect.x + 'px', rect.x + rect.width + 5, rect.y + 11);
+							facecontext.fillText('y: ' + rect.y + 'px', rect.x + rect.width + 5, rect.y + 22);
+
+						});
+						if(!faceflag){// 检测到人脸进行拍照，延迟两秒
+							faceflag = true
+							setTimeout(() => {
+								tackPhoto () // 拍照
+								tipFlag = true
+							}, 5000);
+						}
+					}
+				} else {
+					//检测到多张人脸
+					if(!faceflag){
+						informationTitle.innerText = '只可一人进行人脸识别！'
+					}
+				}
+			}
+		});
+
+    function tackPhoto() {
+			//保存照片至canvas 利用canvas覆盖video形成截图界面
+			facecontext.drawImage(video, 0, 0, canvas.width, canvas.height)
+      // // 再次验证人脸
+			var imageData = facecontext.getImageData(0, 0, canvas.width, canvas.height)
+      tracker.verifyFinishTrack(imageData.data, canvas.width, canvas.height, function (res) {
+        if(res.length){
+					let imgData = canvas.toDataURL('image/png', 0.3)
+          console.log('有人脸')
+					img.src = imgData;
+					video.srcObject.getTracks().forEach(track => track.stop());
+					tra.stop()
+					video.style.display = 'none'
+          return
+        }
+        console.log('没有人脸')
+			})
+
+		}
+
+		var gui = new dat.GUI();
+		gui.add(tracker, 'edgesDensity', 0.1, 0.5).step(0.01);
+		gui.add(tracker, 'initialScale', 1.0, 10.0).step(0.1);
+		gui.add(tracker, 'stepSize', 1, 5).step(0.1);
+	};
+</script>
+
+</body>
+</html>
+

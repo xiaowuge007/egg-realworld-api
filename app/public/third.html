@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>tracking.js - face with camera</title>
+  <link rel="stylesheet" href="./example/assets/demo.css">
+
+  <script src="build/tracking.js"></script>
+  <script src="build/data/face-min.js"></script>
+  <script src="../node_modules/dat.gui/build/dat.gui.min.js"></script>
+  <script src="example/assets/stats.min.js"></script>
+
+  <style>
+    video, canvas {
+      margin-left: 230px;
+      margin-top: 120px;
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+<div class="demo-title">
+  <p><a href="http://trackingjs.com" target="_parent">tracking.js</a> － get user's webcam and detect faces</p>
+</div>
+<div id="informationTitle" style="color: #f40;width: 500px;margin: auto">
+
+</div>
+<div class="demo-frame">
+  <div class="demo-container">
+    <video id="video" width="240" height="320" preload autoplay loop muted playsinline webkit-playsinline="true"></video>
+    <!--<video id="video2" width="240" height="320" preload autoplay loop muted></video>-->
+    <!--<canvas id="canvas" width="240" height="320"></canvas>-->
+  </div>
+</div>
+<div>
+  <img id="img" src="./example/assets/faces.jpg" alt="">
+</div>
+<script>
+  const element = document.getElementById('video')
+	window.navigator.mediaDevices.getUserMedia({
+		video: {
+			width: 240, height: 320
+    },
+		audio: false,
+	}).then(function(stream) {
+		element.srcObject = stream;
+	}).catch(function(err) {
+		throw Error('Cannot capture user camera.');
+	});
+	window.onload = function() {
+		var video = document.getElementById('video');
+		var canvas = document.getElementById('canvas');
+		var img = document.getElementById('img');
+		var informationTitle = document.getElementById('informationTitle');
+		var facecontext = canvas.getContext('2d');
+		var tipFlag = false
+		var faceflag = false
+
+		var tracker = new tracking.ObjectTracker('face');
+		tracker.setInitialScale(4);
+		tracker.setStepSize(2);
+		tracker.setEdgesDensity(0.1);
+
+		var tra = tracking.track('#video', tracker, { camera: false });
+
+		tracker.on('track', function(event) {
+      console.log(event.data)
+		});
+
+		function tackPhoto() {
+			//保存照片至canvas 利用canvas覆盖video形成截图界面
+			facecontext.drawImage(video, 0, 0, canvas.width, canvas.height)
+			let imgData = canvas.toDataURL('image/png', 0.3)
+			img.src = imgData;
+			video.srcObject.getTracks().forEach(track => track.stop());
+			tra.stop()
+			video.style.display = 'none'
+		}
+    setTimeout(function () {
+			facecontext.drawImage(img, 0, 0, canvas.width, canvas.height)
+      var imageData = facecontext.getImageData(0, 0, canvas.width, canvas.height)
+			// tracker.track(imageData.data, canvas.width, canvas.height)
+			tracker.verifyFinishTrack(imageData.data, canvas.width, canvas.height, function (res) {
+				console.log(res)
+			})
+		},1000)
+		// var gui = new dat.GUI();
+		// gui.add(tracker, 'edgesDensity', 0.1, 0.5).step(0.01);
+		// gui.add(tracker, 'initialScale', 1.0, 10.0).step(0.1);
+		// gui.add(tracker, 'stepSize', 1, 5).step(0.1);
+	};
+</script>
+
+</body>
+</html>
+
